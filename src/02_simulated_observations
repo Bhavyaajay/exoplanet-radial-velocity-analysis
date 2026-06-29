@@ -1,0 +1,26 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Orbital parameters for Tau Boötis b
+P = 3.312        # days
+K = 469.59       # m/s
+V = 0            # systemic velocity
+phi = 0          # phase offset
+
+# Time array for smooth model
+t_model = np.linspace(0, 10*P, 1000)
+RV_model = V + K * np.sin(2 * np.pi * t_model / P + phi)
+
+# Generate some "observed" points along the curve for illustration
+t_obs = np.linspace(0, 10*P, 15)
+RV_obs = V + K * np.sin(2 * np.pi * t_obs / P + phi) + np.random.normal(0, 20, len(t_obs))  # small noise
+
+# Plot
+plt.figure(figsize=(10,5))
+plt.plot(t_model, RV_model, label='Tau Boötis b RV Model', color='blue')
+plt.scatter(t_obs, RV_obs, color='red', label='Observed RV', zorder=5)
+plt.xlabel('Time (days)')
+plt.ylabel('Radial Velocity (m/s)')
+plt.legend()
+plt.tight_layout()
+plt.show()
