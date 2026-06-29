@@ -1,2 +1,45 @@
-# exoplanet-radial-velocity-analysis
-Python implementation of Keplerian radial velocity modelling and curve fitting for exoplanet detection.
+# Exoplanet Radial Velocity Analysis
+
+## Overview
+
+This project demonstrates the detection and characterization of an exoplanet using the Radial Velocity (RV) method. The analysis is implemented in Python and includes Keplerian orbital modelling, numerical parameter estimation, and visualization of radial velocity curves.
+
+This project was completed as part of my Integrated M.Sc. Physics programme.
+
+---
+
+## Features
+
+- Keplerian radial velocity model
+- Numerical solution of Kepler's equation
+- Curve fitting using SciPy
+- Simulation of radial velocity observations
+- Scientific visualization using Matplotlib
+
+---
+
+## Tools & Libraries
+
+- Python
+- NumPy
+- SciPy
+- Matplotlib
+
+---
+
+## Repository Structure
+
+```
+src/        → Python source code
+data/       → Input datasets
+figures/    → Generated plots
+docs/       → Project report
+```
+
+---
+
+## Future Improvements
+
+- Bayesian parameter estimation using MCMC
+- Analysis of real telescope observations
+- Multi-planet orbital fitting
