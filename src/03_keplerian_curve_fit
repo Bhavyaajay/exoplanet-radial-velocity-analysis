@@ -1,0 +1,101 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import curve_fit
+
+# ----observed data ----
+time_jd = np.array([420.0466, 546.7365, 837.7662, 838.9487, 861.8046,
+                     1069.0362, 1070.1319, 1071.1149, 1072.1295, 1073.0296,
+                     1172.8957, 1226.7806, 1227.7817, 1228.7429, 1412.1416])
+
+radial_velocity = np.array([60.7, 38.4, 13.6, 12.7, 30.8,
+                            12.6, 9.2, 12.9, 5.3, 0.4,
+                            44, 7.7, 4.4, -2.1, -25.7])
+
+# make time start at zero (days since first observation)
+time = time_jd - time_jd[0]
+
+# ---- Kepler helpers ----
+def eccentric_anomaly(M, e, tol=1e-12, maxiter=200):
+    """Solve E - e sin E = M for E using Newton-Raphson. M, E radians; M can be array."""
+    M = np.asarray(M)
+    E = M.copy()  # initial guess
+    # better initial guess for high e could be used, but this is fine for small e
+    for _ in range(maxiter):
+        f = E - e * np.sin(E) - M
+        fp = 1 - e * np.cos(E)
+        dE = f / fp
+        E = E - dE
+        if np.all(np.abs(dE) < tol):
+            break
+    return E
+
+def true_anomaly_from_E(E, e):
+    """Return true anomaly v from eccentric anomaly E (radians)."""
+    sin_v = np.sqrt(1 - e**2) * np.sin(E) / (1 - e * np.cos(E))
+    cos_v = (np.cos(E) - e) / (1 - e * np.cos(E))
+    v = np.arctan2(sin_v, cos_v)
+    return v
+
+def keplerian_rv(t, K, e, w, V, P, T0):
+    """
+    Keplerian radial velocity (single planet) at times t (days since first obs).
+    - K: semi-amplitude [m/s]
+    - e: eccentricity
+    - w: argument of periastron [rad]
+    - V: systemic velocity [m/s]
+    - P: orbital period [days]
+    - T0: time of periastron passage (same units as t)
+    """
+    M = 2 * np.pi * (t - T0) / P  # mean anomaly (rad)
+    M = np.mod(M, 2*np.pi)
+    E = eccentric_anomaly(M, e)
+    v = true_anomaly_from_E(E, e)
+    return V + K * (np.cos(w + v) + e * np.cos(w))
+
+# ---- Fit configuration ----
+# Option A: Fix period P (use published/known P) and fit [K, e, w, V, T0]
+# Option B: Fit P as well (may be harder with sparse data)
+# Here we show Option A (recommended if you know P). Change P_fixed or set fit_P=True to fit P.
+
+P_fixed = 154.46   # days (example published period of HD 37124 b). Replace if you want to fit P.
+fit_P = False      # set True to let P be a free parameter (careful; needs good initial guess)
+
+# Choose which parameters to fit by building a wrapper for curve_fit
+if not fit_P:
+    # parameters: K, e, w, V, T0
+    def model_to_fit(t, K, e, w, V, T0):
+        return keplerian_rv(t, K, e, w, V, P_fixed, T0)
+    p0 = [30.0, 0.05, 0.0, 0.0, 10.0]   # initial guesses
+    bounds = ([0.0, 0.0, -2*np.pi, -1e4, -1e4], [1e3, 0.99, 2*np.pi, 1e4, 1e4])
+    params, cov = curve_fit(model_to_fit, time, radial_velocity, p0=p0, bounds=bounds)
+    K_fit, e_fit, w_fit, V_fit, T0_fit = params
+    perr = np.sqrt(np.diag(cov))
+else:
+    # parameters: K, e, w, V, P, T0
+    def model_to_fit(t, K, e, w, V, P, T0):
+        return keplerian_rv(t, K, e, w, V, P, T0)
+    p0 = [30.0, 0.05, 0.0, 0.0, 154.46, 10.0]   # initial guesses: include P
+    bounds = ([0.0, 0.0, -2*np.pi, -1e4, 1.0, -1e4], [1e3, 0.99, 2*np.pi, 1e4, 1e4, 1e4])
+    params, cov = curve_fit(model_to_fit, time, radial_velocity, p0=p0, bounds=bounds)
+    K_fit, e_fit, w_fit, V_fit, P_fit, T0_fit = params
+    perr = np.sqrt(np.diag(cov))
+
+# ---- Produce fit curve and plot ----
+tfit = np.linspace(min(time), max(time), 1000)
+if not fit_P:
+    rvfit = model_to_fit(tfit, *params)
+else:
+    rvfit = model_to_fit(tfit, *params)
+
+plt.figure(figsize=(9,5))
+plt.scatter(time, radial_velocity, color='red', label='Observed data')
+plt.plot(tfit, rvfit, color='blue', label='Keplerian fit')
+plt.xlabel("Time (days since first observation)")
+plt.ylabel("Radial velocity (m/s)")
+plt.axhline(0, linestyle='--', color='k', linewidth=0.7)
+plt.legend()
+plt.show()
+
+# ---- Print best-fit results ----
+if not fit_P:
+    print("Fitted (P fixed = {:.5f} days):".format(P_fixed))
